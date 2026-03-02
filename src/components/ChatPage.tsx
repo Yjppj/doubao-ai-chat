@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import type { Message } from '../types';
 import { DoubaoAvatar } from './Avatar';
 import { ChatMessage } from './ChatMessage';
 import { ThinkingModeMenu, type ThinkingMode } from './ThinkingModeMenu';
+import { VoiceRecordingOverlay } from './VoiceRecordingOverlay';
 import { BackIcon, PhoneIcon, MuteIcon, MoreIcon, CameraIcon, MicIcon, PlusIcon, DownloadIcon, PlayIcon, SparkleIcon, FireworkIcon } from './Icons';
 
 // Custom icon for thinking mode button
@@ -77,6 +78,8 @@ export const ChatPage = ({ onBack, initialMessages = [] }: ChatPageProps) => {
   const [isStreaming, setIsStreaming] = useState(false);
   const [thinkingMenuOpen, setThinkingMenuOpen] = useState(false);
   const [thinkingMode, setThinkingMode] = useState<ThinkingMode>('thinking');
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingStartY, setRecordingStartY] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const thinkingButtonRef = useRef<HTMLDivElement>(null);
@@ -173,6 +176,40 @@ export const ChatPage = ({ onBack, initialMessages = [] }: ChatPageProps) => {
       handleSend();
     }
   };
+
+  // Voice recording handlers
+  const handleRecordingStart = useCallback((e: React.TouchEvent | React.MouseEvent) => {
+    e.preventDefault();
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    setRecordingStartY(clientY);
+    setIsRecording(true);
+  }, []);
+
+  const handleRecordingMove = useCallback((e: React.TouchEvent | React.MouseEvent) => {
+    if (!isRecording) return;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    // If moved up more than 50px, prepare to cancel
+    if (recordingStartY - clientY > 50) {
+      // Could add visual feedback here for cancel state
+    }
+  }, [isRecording, recordingStartY]);
+
+  const handleRecordingEnd = useCallback((e: React.TouchEvent | React.MouseEvent) => {
+    if (!isRecording) return;
+
+    const clientY = 'changedTouches' in e ? e.changedTouches[0].clientY : e.clientY;
+    const isCancelled = recordingStartY - clientY > 50;
+
+    if (isCancelled) {
+      // Recording cancelled
+      console.log('Recording cancelled');
+    } else {
+      // Recording sent - simulate sending a voice message
+      console.log('Recording sent');
+    }
+
+    setIsRecording(false);
+  }, [isRecording, recordingStartY]);
 
   // Get the label for the current thinking mode
   const getThinkingModeLabel = () => {
@@ -334,8 +371,18 @@ export const ChatPage = ({ onBack, initialMessages = [] }: ChatPageProps) => {
             />
           </div>
 
-          <button className="p-2 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0">
-            <MicIcon className="w-6 h-6 text-gray-500" />
+          {/* Mic button with long press for voice recording */}
+          <button
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0 select-none touch-none"
+            onMouseDown={handleRecordingStart}
+            onMouseMove={handleRecordingMove}
+            onMouseUp={handleRecordingEnd}
+            onMouseLeave={() => isRecording && setIsRecording(false)}
+            onTouchStart={handleRecordingStart}
+            onTouchMove={handleRecordingMove}
+            onTouchEnd={handleRecordingEnd}
+          >
+            <MicIcon className={`w-6 h-6 ${isRecording ? 'text-blue-500' : 'text-gray-500'}`} />
           </button>
 
           <button
@@ -350,6 +397,12 @@ export const ChatPage = ({ onBack, initialMessages = [] }: ChatPageProps) => {
           </button>
         </div>
       </div>
+
+      {/* Voice Recording Overlay */}
+      <VoiceRecordingOverlay
+        isRecording={isRecording}
+        onCancel={() => setIsRecording(false)}
+      />
     </div>
   );
 };
